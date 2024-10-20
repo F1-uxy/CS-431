@@ -15,4 +15,7 @@ export OMP_PLACES="cores"
 export OMP_PROC_BIND='spread'
 export OMP_DISPLAY_ENV='true'
 
-./pi 100000000
+export LD_LIBRARY_PATH=$HOME/glibc-2.34/lib:$LD_LIBRARY_PATH  # Set custom GLIBC library path
+
+
+./pi 10000
