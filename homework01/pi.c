@@ -83,7 +83,7 @@ double calcPi_Serial(int num_steps)
     {
         x = ((double)rand()) / RAND_MAX;
         y = ((double)rand()) / RAND_MAX;
-        double coords = (pow(x, 2)) + (pow(y,2));
+        double coords = (x * x) + (y * y);
         if(coords <= 1)
         {
             inside_circle++;
@@ -91,7 +91,6 @@ double calcPi_Serial(int num_steps)
     }
 
     pi = 4.0 * ((double)inside_circle / (double)num_steps);
-    printf("%f, %d\n", pi, num_steps);
     return pi;
 }
 
@@ -100,7 +99,7 @@ double calcPi_P1(int num_steps)
     double pi = 0.0;
     int inside_circle = 0;
 
-    #pragma omp parallel
+    #pragma omp parallel reduction(+:inside_circle)
     {
         double x = 0;
         double y = 0;
