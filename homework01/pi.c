@@ -98,16 +98,39 @@ double calcPi_Serial(int num_steps)
 double calcPi_P1(int num_steps)
 {
     double pi = 0.0;
-    /*
-        * Split x axis into sections from -1 to 1
-        * Find y value using the equation sqrt(1-x^2)
-        * Calculate area of that section
-        * Add to the sum of the areas
-        * Find pi using pi=1/2Area
-    */
+    int inside_circle = 0;
+
+    #pragma omp parallel
+    {
+        double x = 0;
+        double y = 0;
+        unsigned int seed = omp_get_thread_num() ^ time(NULL);
+        #pragma omp for
+        for(int i = 0; i < num_steps; i++)
+        {
+            x = ((double)rand_r(&seed)) / RAND_MAX;
+            y = ((double)rand_r(&seed)) / RAND_MAX;
+            double coords = (pow(x, 2)) + (pow(y,2));
+            if(coords <= 1)
+            {
+                #pragma omp critical
+                inside_circle++; // Bottleneck
+            }
+        }
+    }
+
+
+    pi = 4.0 * ((double)inside_circle / (double)num_steps);
+    return pi;
+}
+
+
+double calcPi_P2(int num_steps)
+{
+    double pi = 0.0;
 
     double area_sum = 0.0;
-    double step = 2.0/(double)num_steps;
+    double step = 2.0 / (double)num_steps;
 
     #pragma omp parallel
     {
@@ -115,21 +138,15 @@ double calcPi_P1(int num_steps)
         #pragma omp for
         for(int i = 0; i < num_steps; i++)
         {
-            double x = (i + 0.5) * step;
-            section_sum += sqrt((1.0-pow(x, 2.0)));
+            double x = -1.0 + (i + 0.5) * step; 
+            section_sum += sqrt(1.0 - pow(x, 2.0));
+            
         }
 
-        #pragma omp critical
+        #pragma omp critical    
         area_sum += section_sum;
+
     }
-
     pi = 2.0 * step * area_sum;
-    return pi;
-}
-
-double calcPi_P2(int num_steps)
-{
-    double pi = 0.0;
-
     return pi;
 }
