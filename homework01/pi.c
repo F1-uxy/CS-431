@@ -34,6 +34,13 @@ int main(int argc, char** argv)
     uint64_t end_t;
     InitTSC();
 
+    // create file for outputs
+    FILE* results;
+    results = fopen("results.txt", "ab+");
+    if (results == NULL) {
+        printf("Cannot create file");
+        return 1;
+    }
 
     // calculate in serial 
     start_t = ReadTSC();
@@ -42,6 +49,8 @@ int main(int argc, char** argv)
     printf("Time to calculate Pi serially with %"PRIu32" steps is: %g\n",
            num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi0);
+
+    fprintf(results, "%g:%0.10f ", ElapsedTime(end_t - start_t), Pi0);
     
     // calculate in parallel with integration
     start_t = ReadTSC();
@@ -50,6 +59,9 @@ int main(int argc, char** argv)
     printf("Time to calculate Pi in // with %"PRIu32" steps is: %g\n",
             num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi1);
+
+    fprintf(results, "%g:%0.10f ", ElapsedTime(end_t - start_t), Pi1);
+
 
 
     // calculate in parallel with Monte Carlo
@@ -60,6 +72,7 @@ int main(int argc, char** argv)
            num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi2);
 
+    fprintf(results, "%g:%0.10f\n", ElapsedTime(end_t - start_t), Pi2);
     
     return 0;
 }
