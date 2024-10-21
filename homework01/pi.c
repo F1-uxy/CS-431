@@ -122,15 +122,13 @@ double calcPi_P1(int num_steps)
         {
             x = ((double)rand_r(&seed)) / RAND_MAX;
             y = ((double)rand_r(&seed)) / RAND_MAX;
-            double coords = (pow(x, 2)) + (pow(y,2));
+            double coords = (x*x) + (y*y);
             if(coords <= 1)
             {
-                #pragma omp critical
-                inside_circle++; // Bottleneck
+                inside_circle++;
             }
         }
     }
-
 
     pi = 4.0 * ((double)inside_circle / (double)num_steps);
     return pi;
@@ -144,21 +142,17 @@ double calcPi_P2(int num_steps)
     double area_sum = 0.0;
     double step = 2.0 / (double)num_steps;
 
-    #pragma omp parallel
+    #pragma omp parallel reduction(+:area_sum)
     {
-        double section_sum = 0.0;
         #pragma omp for
         for(int i = 0; i < num_steps; i++)
         {
             double x = -1.0 + (i + 0.5) * step; 
-            section_sum += sqrt(1.0 - pow(x, 2.0));
+            area_sum += sqrt(1.0 - (x*x));
             
         }
-
-        #pragma omp critical    
-        area_sum += section_sum;
-
     }
+
     pi = 2.0 * step * area_sum;
     return pi;
 }
