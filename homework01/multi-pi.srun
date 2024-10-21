@@ -9,7 +9,7 @@
 #SBATCH --mem=16000M                    ### memory limit per node (K|M|G|T)
 #SBATCH --nodes=1                       ### number of nodes to use
 #SBATCH --array=1-20                    # Job array: 20 jobs
-#SBATCH --cpus-per-task=256              ### number of CPUs for each task
+#SBATCH --cpus-per-task=96              ### number of CPUs for each task
 
 
 # Run the executable, passing the SLURM_ARRAY_TASK_ID to differentiate jobs
