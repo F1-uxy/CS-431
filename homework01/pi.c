@@ -34,9 +34,14 @@ int main(int argc, char** argv)
     uint64_t end_t;
     InitTSC();
 
+    // generate filename
+    int num_cores = atoi(argv[2]);
+    char filename[64];
+    snprintf(filename, sizeof(filename), "%d-result.txt", num_cores);
+
     // create file for outputs
     FILE* results;
-    results = fopen("results.txt", "ab+");
+    results = fopen(filename, "ab+");
     if (results == NULL) {
         printf("Cannot create file");
         return 1;

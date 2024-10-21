@@ -1,16 +1,39 @@
 #!/bin/bash
-#SBATCH --account=cis431_531		       ### your ‘charge’ account 
-#SBATCH --partition=compute                    ### queue to submit to
-#SBATCH --job-name=pi_calc_array               # Job name
-#SBATCH --output=output/%A/output_%A_%a.out       # Output file (%A = job array ID, %a = array index)
-#SBATCH --error=output/%A/error_%A_%a.err         # Error file
-#SBATCH --ntasks=1                      # Run a single task
-#SBATCH --time=00:05:00                 # Time limit
-#SBATCH --mem=16000M                    ### memory limit per node (K|M|G|T)
-#SBATCH --nodes=1                       ### number of nodes to use
-#SBATCH --array=1-20                    # Job array: 20 jobs
-#SBATCH --cpus-per-task=96              ### number of CPUs for each task
+#SBATCH --account=cis431_531                 ### your ‘charge’ account 
+#SBATCH --partition=compute                   ### queue to submit to
+#SBATCH --job-name=pi_calc_array              # Job name
+#SBATCH --output=output/%A/output_%A_%a.out   # Output file (%A = job array ID, %a = array index)
+#SBATCH --error=output/%A/error_%A_%a.err     # Error file
+#SBATCH --ntasks=1                             # Run a single task
+#SBATCH --time=00:05:00                        # Time limit
+#SBATCH --mem=16000M                           ### memory limit per node (K|M|G|T)
+#SBATCH --nodes=1                              ### number of nodes to use
 
+# Define the increment (this is the "n" value you mentioned)
+increment=2
+max_cores=128
 
-# Run the executable, passing the SLURM_ARRAY_TASK_ID to differentiate jobs
-./pi 100000000
+# Create an array of core counts: every n + 2 cores
+CORE_COUNTS=()
+for (( cores=1; cores <= max_cores; cores+=increment )); do
+    CORE_COUNTS+=($cores)
+done
+
+# Adjust for a maximum of 128 cores, ensuring to include n + 2
+if [[ ${#CORE_COUNTS[@]} -eq 0 ]] || [[ ${CORE_COUNTS[-1]} -lt $max_cores ]]; then
+    CORE_COUNTS+=($max_cores)
+fi
+
+# Set the array index to the number of core counts
+#SBATCH --array=0-$((${#CORE_COUNTS[@]} - 1))  # Job array: Adjusted based on core counts
+
+# Get the core count for this job based on the array index
+CORE_COUNT=${CORE_COUNTS[$SLURM_ARRAY_TASK_ID]}  # Get the corresponding core count
+mkdir -p output/$CORE_COUNT                       # Create the directory for output
+
+# Set the number of CPUs for this task
+export OMP_NUM_THREADS=$CORE_COUNT                # Set the number of threads
+#SBATCH --cpus-per-task=$CORE_COUNT               # Update the number of CPUs for this task
+
+# Run the executable, passing the number of steps and the core count
+./pi 100000000 $CORE_COUNT

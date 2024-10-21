@@ -1,0 +1,63 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{float}
+
+% Title and author
+\title{Performance Analysis of Pi Calculation with Varying Core Counts}
+\author{Charlie Flux}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This report presents an analysis of the performance of two methods for estimating Pi --- the Monte Carlo method and the area of a circle method --- across varying core counts on a high-performance computing system. The study evaluates the execution time, parallel efficiency, and scalability. Figures and charts illustrate the observed trends.
+\end{abstract}
+
+\section{Introduction}
+The purpose of this experiment was to examine the impact of parallelization on the performance of Pi estimation methods using OpenMP. Specifically, we explored how varying the number of cores, from 1 up to 128, affects the execution time and scalability of both methods.
+
+\section{Methodology}
+We implemented two methods for estimating Pi:
+\begin{itemize}
+    \item \textbf{Monte Carlo Method:} A random point generation method that calculates the ratio of points inside a circle.
+    \item \textbf{Area of Circle Method:} Uses the integral approach to approximate Pi.
+\end{itemize}
+The program was run on varying core counts, including 1, 2, 4, 8, 16, 32, 64, and 128, using OpenMP to parallelize the code.
+
+\subsection{Experimental Setup}
+The tests were performed on a system supporting up to 128 cores. Each experiment was repeated 20 times, and the average time was recorded for each core configuration. The results are displayed as box plots to identify the distribution and variance in execution time.
+
+\section{Results and Discussion}
+\subsection{Execution Time}
+Figure \ref{fig:execution_time} illustrates the execution time for both methods across varying core counts. The Monte Carlo method shows significant speedup as the number of cores increases, while the area of a circle method shows diminishing returns beyond 64 cores.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{}
+    \caption{Execution Time for Pi Estimation Methods}
+    \label{fig:execution_time}
+\end{figure}
+
+\subsection{Speedup and Efficiency}
+The speedup achieved by each method is shown in Figure \ref{fig:speedup}. The Monte Carlo method scales efficiently with cores, while the area method plateaus as the core count increases.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{}
+    \caption{Speedup for Different Core Counts}
+    \label{fig:speedup}
+\end{figure}
+
+\section{Conclusion}
+The experiment demonstrates that the Monte Carlo method benefits more from parallelization, achieving near-linear speedup up to 128 cores. The area of a circle method, while also benefiting from parallelization, exhibits diminishing returns after 64 cores due to the nature of the integral computation.
+
+\section{Future Work}
+Future studies could investigate the impact of different scheduling strategies and thread affinity on performance.
+
+\begin{thebibliography}{1}
+\bibitem{omp} OpenMP Specifications, \textit{https://www.openmp.org/specifications/}, accessed on October 2024.
+\end{thebibliography}
+
+\end{document}
