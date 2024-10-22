@@ -154,7 +154,6 @@ double calcPi_P2(int num_steps)
         {
             double x = -1.0 + (i + 0.5) * step; 
             area_sum += sqrt(1.0 - (x*x));
-            
         }
     }
 
