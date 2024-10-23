@@ -8,7 +8,7 @@
 #SBATCH --mem=16000M                          ### memory limit per node (K|M|G|T)
 #SBATCH --nodes=1                             ### number of nodes to use
 #SBATCH --ntasks-per-node=1                   ### number of MPI tasks per node
-#SBATCH --cpus-per-task=1                   ### number of CPUs for each task
+#SBATCH --cpus-per-task=96                   ### number of CPUs for each task
 #SBATCH --array=0-19
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK

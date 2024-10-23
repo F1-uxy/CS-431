@@ -142,13 +142,16 @@ double calcPi_P2(int num_steps)
     double area_sum = 0.0;
     double step = 2.0 / (double)num_steps;
 
-    #pragma omp parallel reduction(+:area_sum)
+    #pragma omp parallel
     {
         #pragma omp for
         for(int i = 0; i < num_steps; i++)
         {
             double x = -1.0 + (i + 0.5) * step; 
-            area_sum += sqrt(1.0 - (x*x));
+            double temp = sqrt(1.0 - (x*x));
+            #pragma omp atomic
+            area_sum += temp;
+            
             
         }
     }
