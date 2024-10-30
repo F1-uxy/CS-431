@@ -18,8 +18,10 @@ int main(int argc, char** argv)
 {
     // get input values
     uint32_t arr_size = 100;
+    uint32_t cpus = 0;
     if(argc > 1) {
         arr_size = atoi(argv[1]);
+        cpus = atoi(argv[2]);
     } else {
         usage(argc, argv);
         printf("using %"PRIu32"\n", arr_size);
@@ -27,9 +29,7 @@ int main(int argc, char** argv)
 
     // Generate random array of size n
     int src[arr_size];
-    int src2[arr_size];
     int prefix[arr_size];
-    int prefix2[arr_size];
     memset(prefix, 0, sizeof(prefix));  
     srand(time(NULL));
 
@@ -37,7 +37,6 @@ int main(int argc, char** argv)
     {
         int x = rand() % 10;
         src[r] = x;
-        src2[r] = x;
 
     }
     printf("\n");
@@ -50,7 +49,7 @@ int main(int argc, char** argv)
     // create file for outputs
     FILE* results;
     char filename[32];
-    sprintf(filename, "%d.txt", arr_size);
+    sprintf(filename, "%d.txt", cpus);
     results = fopen(filename, "ab+");
     if (results == NULL) {
         printf("Cannot create file");
@@ -146,9 +145,8 @@ void prefixlogn(int src[], int prefix[], uint32_t n)
 void prefixn(int *arr, int *output, uint32_t n)
 {
     int *temp = (int*) malloc(n * sizeof(int));
-    int *arr2 = (int*) malloc(n * sizeof(int));
 
-    
+    #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         temp[i] = arr[i];
     }
@@ -176,6 +174,7 @@ void prefixn(int *arr, int *output, uint32_t n)
         }
     }
 
+    #pragma omp parallel for
     for (i = 0; i < n; i++) {
         output[i] = arr[i] + temp[i];
     }
