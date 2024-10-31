@@ -104,7 +104,7 @@ int main(int argc, char** argv)
     // create file for outputs
     FILE* results;
     char filename[32];
-    sprintf(filename, "%d.txt", cpus);
+    sprintf(filename, "%d-%d.txt", cpus, arr_size);
     results = fopen(filename, "ab+");
     if (results == NULL) {
         printf("Cannot create file");
