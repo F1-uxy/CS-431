@@ -1,82 +1,94 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
-#include <time.h>
 
-void blelloch_scan(int *arr, int *output, int n) {
-    int *temp = (int*) malloc(n * sizeof(int));
-    int *arr2 = (int*) malloc(n * sizeof(int));
+typedef struct TreeNode {
+    int sum;
+    struct TreeNode *left, *right;
+} TreeNode;
 
-    
-    // Copy the original array to a temporary array for the final adjustment
-    for (int i = 0; i < n; i++) {
-        temp[i] = arr[i];
-        //printf("%d vs %d, ", arr[i], temp[i]);
-    }
-
-    // Step 1: Upsweep phase (reduce)
-    int d, i;
-    for (d = 1; d < n; d *= 2) {
-        for (i = 0; i < n; i += 2 * d) {
-            if (i + d < n) {
-                arr[i + 2 * d - 1] += arr[i + d - 1];
-            }
-        }
-    }
-    
-    // Set the last element to 0 to start the down-sweep
-    arr[n - 1] = 0;
-
-    // Step 2: Downsweep phase
-    for (d = n / 2; d >= 1; d /= 2) {
-        for (i = 0; i < n; i += 2 * d) {
-            if (i + d < n) {
-                int tmp = arr[i + d - 1];
-                arr[i + d - 1] = arr[i + 2 * d - 1];
-                arr[i + 2 * d - 1] += tmp;
-            }
-        }
-    }
-
-    // Copy the result to the output array and add the original values
-    for (i = 0; i < n; i++) {
-        //printf("%d, ", arr2[i]);
-        output[i] = arr[i] + temp[i];
-    }
-
-    free(temp);
+TreeNode* createNode(int sum) {
+    TreeNode* node = (TreeNode*)malloc(sizeof(TreeNode));
+    node->sum = sum;
+    node->left = node->right = NULL;
+    return node;
 }
 
+TreeNode* buildTree(int *arr, int start, int end) {
+    if (start == end) {
+        return createNode(arr[start]);
+    }
+    int mid = (start + end) / 2;
+    TreeNode* root = createNode(0);
 
-int main() {
+    #pragma omp task shared(root)
+    root->left = buildTree(arr, start, mid);
 
-    int src[8];
-    srand(time(NULL));
+    #pragma omp task shared(root)
+    root->right = buildTree(arr, mid + 1, end);
 
-    for(int r = 0; r < 8; r++)
-    {
-        int x = rand() % 10;
-        src[r] = x;
-        printf("%d, ", x);
+    #pragma omp taskwait 
+    root->sum = root->left->sum + root->right->sum; 
+    return root;
+}
 
+void calculatePrefixSums(TreeNode *node, int partialSum, int *prefixSum, int *index) {
+    if (!node->left && !node->right) { 
+        #pragma omp critical
+        {
+            prefixSum[*index] = partialSum + node->sum;
+            (*index)++;
+        }
+        return;
     }
 
-    int arr[] = {3, 1, 7, 0, 4, 1, 6, 3};
-    int arr2[] = {3, 1, 7, 0, 4, 1, 6, 3};
+    #pragma omp task if(node->left)  
+    calculatePrefixSums(node->left, partialSum, prefixSum, index);
 
-    int n = sizeof(src) / sizeof(src[0]);
-    int *output = (int*) malloc(n * sizeof(int));
+    #pragma omp task if(node->right) 
+    calculatePrefixSums(node->right, partialSum + (node->left ? node->left->sum : 0), prefixSum, index);
 
-    blelloch_scan(src, output, n);
+    #pragma omp taskwait 
+}
 
-    printf("Prefix Sum Result:\n");
+void freeTree(TreeNode *node) {
+    if (node == NULL) return;
+    freeTree(node->left);
+    freeTree(node->right);
+    free(node);
+}
 
-    
+int main() {
+    int arr[] = {1, 2, 3, 4, 5, 6, 7, 8};
+    int n = sizeof(arr) / sizeof(arr[0]);
+
+    // Step 1: Build the binary tree
+    TreeNode* root;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        root = buildTree(arr, 0, n - 1);
+    }
+
+    // Step 2: Calculate the prefix sums
+    int *prefixSum = (int*)malloc(n * sizeof(int));
+    int index = 0;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        calculatePrefixSums(root, 0, prefixSum, &index);
+    }
+
+    // Print the prefix sums
+    printf("Prefix Sums: ");
     for (int i = 0; i < n; i++) {
-        printf("%d ", output[i]);
+        printf("%d ", prefixSum[i]);
     }
     printf("\n");
 
-    free(output);
+    // Free the tree and prefix sum array
+    freeTree(root);
+    free(prefixSum);
+
     return 0;
 }
