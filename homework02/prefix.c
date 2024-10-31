@@ -10,63 +10,72 @@
 
 void usage(int argc, char** argv);
 void prefixSerial(int src[], int prefix[], uint32_t n);
-void prefixlogn(int src[], int prefix[], uint32_t n);
-void prefixn(int src[], int prefix[], uint32_t n);
+void prefixwindow(int src[], int prefix[], uint32_t n);
 
-typedef struct TreeNode {
+typedef struct Node 
+{
     int sum;
-    struct TreeNode *left, *right;
-} TreeNode;
+    struct Node *left;
+    struct Node *right;
+} Node;
 
-TreeNode* createNode(int sum) {
-    TreeNode* node = (TreeNode*)malloc(sizeof(TreeNode));
+void prefixtree(Node *node, int partialSum, int *prefixSum, int *idx);
+Node* newNode(int sum);
+Node* build(int *arr, int start, int end);
+void prefixtree(Node *node, int partialSum, int *prefixSum, int *idx);
+
+Node* newNode(int sum) 
+{
+    Node* node = (Node*)malloc(sizeof(Node));
     node->sum = sum;
     node->left = node->right = NULL;
     return node;
 }
 
-TreeNode* buildTree(int *arr, int start, int end) {
+
+Node* build(int *arr, int start, int end) 
+{
     if (start == end) {
-        return createNode(arr[start]);
+        return newNode(arr[start]);
     }
     int mid = (start + end) / 2;
-    TreeNode* root = createNode(0);
+    Node* curr = newNode(0);
 
-    #pragma omp task shared(root)
-    root->left = buildTree(arr, start, mid);
+    #pragma omp task
+    curr->left = build(arr, start, mid);
 
-    #pragma omp task shared(root)
-    root->right = buildTree(arr, mid + 1, end);
+    #pragma omp task
+    curr->right = build(arr, mid + 1, end);
 
     #pragma omp taskwait 
-    root->sum = root->left->sum + root->right->sum; 
-    return root;
+    curr->sum = curr->left->sum + curr->right->sum; 
+    return curr;
 }
 
-void calculatePrefixSums(TreeNode *node, int partialSum, int *prefixSum, int *index) {
+void prefixtree(Node *node, int partialSum, int *prefixSum, int *idx) 
+{
     if (!node->left && !node->right) { 
         #pragma omp critical
         {
-            prefixSum[*index] = partialSum + node->sum;
-            (*index)++;
+            prefixSum[*idx] = partialSum + node->sum;
+            (*idx)++;
         }
         return;
     }
 
-    #pragma omp task if(node->left)  
-    calculatePrefixSums(node->left, partialSum, prefixSum, index);
-
-    #pragma omp task if(node->right) 
-    calculatePrefixSums(node->right, partialSum + (node->left ? node->left->sum : 0), prefixSum, index);
+    if(node->left != NULL)
+    {
+        #pragma omp task
+        prefixtree(node->left, partialSum, prefixSum, idx);
+    }
+    
+    if(node->right != NULL)
+    {
+        #pragma omp task
+        prefixtree(node->right, partialSum + (node->left ? node->left->sum : 0), prefixSum, idx);
+    }
 
     #pragma omp taskwait 
-}
-
-void freeTree(TreeNode *node) {
-    if (node == NULL) return;
-    freeTree(node->left);
-    freeTree(node->right);
-    free(node);
 }
 
 int main(int argc, char** argv)
@@ -94,7 +103,6 @@ int main(int argc, char** argv)
         src[r] = x;
 
     }
-    printf("\n");
 
     // set up timer
     uint64_t start_t;
@@ -111,61 +119,37 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    for(int i = 0; i < arr_size; i++)
-    {
-        printf("%d, ", src[i]);
-    }
-    printf("\n");
-
 
     // calculate in serial 
     memcpy(prefix, src, arr_size * sizeof(int));
     start_t = ReadTSC();
     prefixSerial(src, prefix, arr_size);
     end_t = ReadTSC();
-    for(int i = 0; i < arr_size; i++)
-    {
-        printf("%d, ", prefix[i]);
-    }
-    
+
     printf("\nTime taken: %f \n", (ElapsedTime(end_t - start_t)));
     fprintf(results, "%g, ", ElapsedTime(end_t - start_t));
     
-
-
+    // Calculate in parallel
     memcpy(prefix, src, arr_size * sizeof(int));
     start_t = ReadTSC();
-    prefixlogn(src, prefix, arr_size);
+    prefixwindow(src, prefix, arr_size);
     end_t = ReadTSC();
-    for(int i = 0; i < arr_size; i++)
-    {
-        printf("%d, ", prefix[i]);
-    }
+
     printf("\nTime taken: %f \n", (ElapsedTime(end_t - start_t)));
     fprintf(results, "%g, ", ElapsedTime(end_t - start_t));
 
 
 
-    int *output = (int*)malloc(arr_size * sizeof(int));
-    TreeNode* root = buildTree(src, 0, arr_size - 1);
-
-    int *prefixSum = (int*)malloc(arr_size * sizeof(int));
-    int index = 0;
+    Node* root = build(src, 0, arr_size - 1);
+    int *sum = (int*)malloc(arr_size * sizeof(int));
+    int idx = 0;
     start_t = ReadTSC();
-    calculatePrefixSums(root, 0, prefixSum, &index);
+    prefixtree(root, 0, sum, &idx);
     end_t = ReadTSC();
 
-    for (int i = 0; i < arr_size; i++) {
-        printf("%d, ", prefixSum[i]);
-    }
     printf("\nTime taken: %f \n", ElapsedTime(end_t - start_t));
     fprintf(results, "%g \n", ElapsedTime(end_t - start_t));
 
-    freeTree(root);
-    free(prefixSum);
-
-    
-    
     return 0;
 }
 
@@ -187,7 +171,7 @@ void prefixSerial(int src[], int prefix[], uint32_t n)
     }
 }
 
-void prefixlogn(int src[], int prefix[], uint32_t n)
+void prefixwindow(int src[], int prefix[], uint32_t n)
 {
     int temp[n];
 
@@ -201,45 +185,4 @@ void prefixlogn(int src[], int prefix[], uint32_t n)
             prefix[j] = temp[j] + temp[j - i];
         }
     }
-}
-
-// Using Belloch Scan algorithm to simulate O(n) prefix sum
-void prefixn(int *arr, int *output, uint32_t n)
-{
-    int *temp = (int*) malloc(n * sizeof(int));
-
-    #pragma omp parallel for    
-    for (int i = 0; i < n; i++) {
-        temp[i] = arr[i];
-    }
-
-    int d, i;
-    for (d = 1; d < n; d *= 2) {
-        #pragma omp parallel for
-        for (i = 0; i < n; i += 2 * d) {
-            if (i + d < n) {
-                arr[i + 2 * d - 1] += arr[i + d - 1];
-            }
-        }
-    }
-    
-    arr[n - 1] = 0;
-
-    for (d = n / 2; d >= 1; d /= 2) {
-        #pragma omp parallel for
-        for (i = 0; i < n; i += 2 * d) {
-            if (i + d < n) {
-                int tmp = arr[i + d - 1];
-                arr[i + d - 1] = arr[i + 2 * d - 1];
-                arr[i + 2 * d - 1] += tmp;
-            }
-        }
-    }
-
-    #pragma omp parallel for
-    for (i = 0; i < n; i++) {
-        output[i] = arr[i] + temp[i];
-    }
-
-    free(temp);
 }
