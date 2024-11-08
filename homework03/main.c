@@ -395,6 +395,24 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
               int m, int n, int nnz, double* vector_x, double *res, 
               omp_lock_t* writelock)
 {
+
+    #pragma omp parallel for
+    for(int i = 0; i < m; i++)
+    {
+        res[i] = 0.0;
+    }
+
+    #pragma omp parallel for
+    for(int nnz_id = 0; nnz_id < nnz; nnz_id++)
+    {
+        unsigned int i = row_ind[nnz_id];
+        unsigned int j = col_ind[nnz_id];
+        double val = vals[nnz_id];
+
+        omp_set_lock(&writelock[i]);
+        res[i] += val * vector_x[j];
+        omp_unset_lock(&writelock[i]);
+    }
 }
 
 
@@ -413,6 +431,19 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
 void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
                   int m, int n, int nnz, double* vector_x, double *res)
 {
+    for(int i = 0; i < m; i++)
+    {
+        res[i] = 0.0;
+    }
+
+    for(int nnz_id = 0; nnz_id < nnz; nnz_id++)
+    {
+        unsigned int i = row_ind[nnz_id];
+        unsigned int j = col_ind[nnz_id];
+        double val = vals[nnz_id];
+
+        res[i] += val * vector_x[j];
+    }
 }
 
 
