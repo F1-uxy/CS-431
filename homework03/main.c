@@ -112,7 +112,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "done\n");
 
 
-
+    
     // Calculate CSR SpMV
     double *res_csr = (double*) malloc(sizeof(double) * m);;
     assert(res_csr);
@@ -161,7 +161,7 @@ int main(int argc, char** argv)
     strcpy(resName, argv[3]); 
     fprintf(stdout, "Result file name: %s ... ", resName);
     t0 = ReadTSC();
-    store_result(resName, res_csr, m);
+     store_result(resName, res_csr, m);
     // store_result(resName, res_coo, m);
     timer[STORE_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "file saved\n");
@@ -347,8 +347,55 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
                         int m, int n, int nnz,
                         unsigned int** csr_row_ptr, unsigned int** csr_col_ind,
                         double** csr_vals)
-
 {
+    // Allocate memory for CSR arrays
+    *csr_row_ptr = (unsigned int*)malloc((m + 1) * sizeof(unsigned int));
+    *csr_col_ind = (unsigned int*)malloc(nnz * sizeof(unsigned int));
+    *csr_vals = (double*)malloc(nnz * sizeof(double));
+
+    if(*csr_row_ptr == NULL || *csr_col_ind == NULL || *csr_vals == NULL)
+    {
+        fprintf(stderr, "Cannot initialize memory for csr_* output parameters");
+        return;
+    }
+
+    // Initialize csr_row_ptr to zero
+    #pragma omp parallel for
+    for(int i = 0; i <= m; i++) {
+        (*csr_row_ptr)[i] = 0;
+    }
+
+    // Count the number of non-zeros per row, adjusting for 1-based indexing
+    for(int i = 0; i < nnz; i++) {
+        int row = row_ind[i] - 1;
+        (*csr_row_ptr)[row + 1]++;
+    }
+
+    // Compute the prefix sum to get the starting index of each row
+    for(int i = 1; i <= m; i++) {
+        (*csr_row_ptr)[i] += (*csr_row_ptr)[i - 1];
+    }
+
+    // Allocate a copy of csr_row_ptr for calculating positions in csr_col_ind and csr_vals
+    unsigned int* positions = (unsigned int*)malloc((m + 1) * sizeof(unsigned int));
+    memcpy(positions, *csr_row_ptr, (m + 1) * sizeof(unsigned int));
+
+    // Fill csr_col_ind and csr_vals, adjusting for 1-based indexing
+    #pragma omp parallel for
+    for(int i = 0; i < nnz; i++) {
+        int row = row_ind[i] - 1;
+        int col = col_ind[i] - 1;
+        double value = val[i];
+
+        unsigned int pos;
+        #pragma omp atomic capture
+        pos = positions[row]++;
+
+        (*csr_col_ind)[pos] = col;
+        (*csr_vals)[pos] = value;
+    }
+
+    free(positions);
 }
 
 /* Reads in a vector from file.
@@ -389,24 +436,20 @@ void read_vector(char* fileName, double** vector, int* vecSize)
     *vecSize = vector_size;
 }
 
-/* SpMV function for COO stored sparse matrix
- */
+/* Parallel SpMV for COO stored sparse matrix */
 void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
               int m, int n, int nnz, double* vector_x, double *res, 
               omp_lock_t* writelock)
 {
-
     #pragma omp parallel for
-    for(int i = 0; i < m; i++)
-    {
+    for (int i = 0; i < m; i++) {
         res[i] = 0.0;
     }
 
     #pragma omp parallel for
-    for(int nnz_id = 0; nnz_id < nnz; nnz_id++)
-    {
-        unsigned int i = row_ind[nnz_id];
-        unsigned int j = col_ind[nnz_id];
+    for (int nnz_id = 0; nnz_id < nnz; nnz_id++) {
+        unsigned int i = row_ind[nnz_id] - 1;
+        unsigned int j = col_ind[nnz_id] - 1;
         double val = vals[nnz_id];
 
         omp_set_lock(&writelock[i]);
@@ -415,45 +458,65 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
     }
 }
 
-
-
-/* SpMV function for CSR stored sparse matrix
- */
+/* Parallel SpMV for CSR stored sparse matrix */
 void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind, 
           double* csr_vals, int m, int n, int nnz, 
           double* vector_x, double *res)
 {
-}
-
-
-/* SpMV function for COO stored sparse matrix
- */
-void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
-                  int m, int n, int nnz, double* vector_x, double *res)
-{
-    for(int i = 0; i < m; i++)
-    {
+    for (int i = 0; i < m; i++) {
         res[i] = 0.0;
     }
 
-    for(int nnz_id = 0; nnz_id < nnz; nnz_id++)
-    {
-        unsigned int i = row_ind[nnz_id];
-        unsigned int j = col_ind[nnz_id];
+    for (int i = 0; i < m; i++) {
+        int curr_row_idx = csr_row_ptr[i];
+        int nxt_row_idx = csr_row_ptr[i + 1];
+
+        for (int y = curr_row_idx; y < nxt_row_idx; y++) {
+            unsigned int j = csr_col_ind[y];   
+            double val = csr_vals[y];
+
+            res[i] += val * vector_x[j];
+        }
+    }
+}
+
+/* Serial SpMV for COO stored sparse matrix */
+void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
+                  int m, int n, int nnz, double* vector_x, double *res)
+{
+    for (int i = 0; i < m; i++) {
+        res[i] = 0.0;
+    }
+
+    for (int nnz_id = 0; nnz_id < nnz; nnz_id++) {
+        unsigned int i = row_ind[nnz_id] - 1;
+        unsigned int j = col_ind[nnz_id] - 1;
         double val = vals[nnz_id];
 
         res[i] += val * vector_x[j];
     }
 }
 
-
-
-/* SpMV function for CSR stored sparse matrix
- */
+/* Serial SpMV for CSR stored sparse matrix */
 void spmv_ser(unsigned int* csr_row_ptr, unsigned int* csr_col_ind, 
               double* csr_vals, int m, int n, int nnz, 
               double* vector_x, double *res)
 {
+    for (int i = 0; i < m; i++) {
+        res[i] = 0.0;
+    }
+
+    for (int i = 0; i < m; i++) {
+        int curr_row_idx = csr_row_ptr[i];
+        int nxt_row_idx = csr_row_ptr[i + 1];
+
+        for (int y = curr_row_idx; y < nxt_row_idx; y++) {
+            unsigned int j = csr_col_ind[y];
+            double val = csr_vals[y];
+
+            res[i] += val * vector_x[j];
+        }
+    }
 }
 
 
