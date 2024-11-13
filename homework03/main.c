@@ -25,6 +25,21 @@ int main(int argc, char** argv)
     // program info
     usage(argc, argv);
 
+    uint32_t cpus = 0;
+
+    if(argc == 5)
+    {
+        cpus = atoi(argv[4]);
+    }
+
+    FILE* timings;
+    char filename[32];
+    sprintf(filename, "%d.txt", cpus);
+    timings = fopen(filename, "ab+");
+    if (timings == NULL) {
+        printf("Cannot create file");
+        return 1;
+    }
 
     // Initialize timess
     double timer[NUM_TIMERS];
@@ -169,6 +184,15 @@ int main(int argc, char** argv)
 
     // print timer
     print_time(timer);
+
+    for (int i = 0; i < NUM_TIMERS; i++) {
+        fprintf(timings, "%f", timer[i]);
+        if (i < NUM_TIMERS - 1) {
+            fprintf(timings, ",");
+        }
+    }
+    fprintf(timings, "\n");
+    fclose(timings);
 
 
     // Free memory
