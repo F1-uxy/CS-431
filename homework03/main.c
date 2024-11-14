@@ -492,14 +492,13 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
         res[i] = 0.0;
     }
 
-    #pragma omp for
+    #pragma omp parallel for
     for (int i = 0; i < m; i++) {
         int curr_row_idx = csr_row_ptr[i];
         int nxt_row_idx = csr_row_ptr[i + 1];
 
         double row_result = 0.0;
 
-        #pragma omp parallel for reduction(+:row_result)
         for (int y = curr_row_idx; y < nxt_row_idx; y++) {
             unsigned int j = csr_col_ind[y];   
             double val = csr_vals[y];
