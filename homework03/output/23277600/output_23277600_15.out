@@ -1,0 +1,36 @@
+-----------------------------------------------------
+Matrix name:     cant/cant.mtx
+Matrix size:     62451 x 62451 => 2034917
+-----------------------------------------------------
+Is matrix:       1
+Is sparse:       1
+-----------------------------------------------------
+Is complex:      0
+Is real:         1
+Is integer:      0
+Is pattern only: 0
+-----------------------------------------------------
+Is general:      0
+Is symmetric:    1
+Is skewed:       0
+Is hermitian:    0
+-----------------------------------------------------
+Matrix file name: cant/cant.mtx ... file loaded.
+Expanding symmetric matrix ... done
+  Total # of non-zeros is 4007383
+Converting COO to CSR...done
+Vector file name: cant/b.mtx ... file loaded
+Calculating COO SpMV ... done
+Calculating CSR SpMV ... done
+Calculating COO SpMV serial ... done
+Calculating CSR SpMV ... done
+Result file name: ./myans.mtx ... file saved
+Module		Time
+Load		0.690369
+Convert		0.017919
+Lock Init	0.000268
+COO SpMV	0.446885
+CSR SpMV	0.067963
+COO SpMV Serial	1.535642
+CSR SpMV Serial	1.618853
+Store		0.023324
