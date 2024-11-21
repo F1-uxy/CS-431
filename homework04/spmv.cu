@@ -12,7 +12,7 @@ __global__ void
 spmv_kernel_ell(unsigned int* col_ind, T* vals, int m, int n, int nnz, 
                     double* x, double* b)
 {
-    
+    /*
     unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (row < m) 
@@ -33,9 +33,9 @@ spmv_kernel_ell(unsigned int* col_ind, T* vals, int m, int n, int nnz,
         }
 
         b[row] = sum;
-    }
+    }*/
    
-    /*
+    
     unsigned int tid = threadIdx.x;
     unsigned int row = blockIdx.x;
     unsigned int i = tid;
@@ -75,12 +75,12 @@ spmv_kernel_ell(unsigned int* col_ind, T* vals, int m, int n, int nnz,
     if(tid == 0 && row < m)
     {
         b[blockIdx.x] = Local[0];
-    }*/
+    }
 }
 
 
 void spmv_gpu_ell(unsigned int* col_ind, double* vals, int m, int n, int nnz, 
-                  double* x, double* b)
+                  double* x, double* b, int nthreads)
 {
     // timers
     cudaEvent_t start;
@@ -91,7 +91,7 @@ void spmv_gpu_ell(unsigned int* col_ind, double* vals, int m, int n, int nnz,
 
     // GPU execution parameters
     unsigned int blocks = m; 
-    unsigned int threads = 48; 
+    unsigned int threads = nthreads; 
     unsigned int shared = threads * sizeof(double);
 
     dim3 dimGrid(blocks, 1, 1);
@@ -228,7 +228,7 @@ spmv_kernel(unsigned int* row_ptr, unsigned int* col_ind, T* vals,
 
 
 void spmv_gpu(unsigned int* row_ptr, unsigned int* col_ind, double* vals,
-              int m, int n, int nnz, double* x, double* b)
+              int m, int n, int nnz, double* x, double* b, int nthreads)
 {
     // timers
     cudaEvent_t start;
@@ -241,7 +241,7 @@ void spmv_gpu(unsigned int* row_ptr, unsigned int* col_ind, double* vals,
     // 1 thread block per row
     // 64 threads working on the non-zeros on the same row
     unsigned int blocks = m; 
-    unsigned int threads = 64; 
+    unsigned int threads = nthreads; 
     unsigned int shared = threads * sizeof(double);
 
     dim3 dimGrid(blocks, 1, 1);

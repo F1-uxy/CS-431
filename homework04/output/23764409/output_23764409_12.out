@@ -1,0 +1,46 @@
+-----------------------------------------------------
+Matrix name:     cant/cant.mtx
+Matrix size:     62451 x 62451 => 2034917
+-----------------------------------------------------
+Is matrix:       1
+Is sparse:       1
+-----------------------------------------------------
+Is complex:      0
+Is real:         1
+Is integer:      0
+Is pattern only: 0
+-----------------------------------------------------
+Is general:      0
+Is symmetric:    1
+Is skewed:       0
+Is hermitian:    0
+-----------------------------------------------------
+Matrix file name: cant/cant.mtx ... file loaded.
+Expanding symmetric matrix ... done
+  Total # of non-zeros is 4007383
+Converting COO to CSR...done
+Vector file name: cant/b.mtx ... file loaded
+Executing GPU CSR SpMV ... 
+  Pinned Device to Host bandwidth (GB/s): 2.028716
+  Pinned Device to Host bandwidth (GB/s): 5.772996
+  Pinned Device to Host bandwidth (GB/s): 6.524642
+  Pinned Device to Host bandwidth (GB/s): 1.884005
+  Exec time (per itr): 0.00063751 s
+  Pinned Host to Device bandwidth (GB/s): 2.238708
+Executing GPU ELL SpMV ... 
+  Pinned Device to Host bandwidth (GB/s): 19.690756
+  Pinned Device to Host bandwidth (GB/s): 19.259150
+  Pinned Device to Host bandwidth (GB/s): 8.462195
+  Exec time (per itr): 0.00076151 s
+  Pinned Host to Device bandwidth (GB/s): 1.308916
+Calculating CPU CSR SpMV ... done
+2-Norm between CPU and GPU answers: 4.343429e+05
+Result file name: ./test.mtx ... file saved
+Module		Time
+Load		0.572898
+Convert		0.027977
+CPU SpMV	0.023328
+GPU Alloc	0.326598
+GPU SpMV	0.063761
+GPU ELL SpMV	0.076166
+Store		0.029872

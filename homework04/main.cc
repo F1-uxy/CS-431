@@ -27,6 +27,11 @@ int main(int argc, char** argv)
 {
     // program info
     usage(argc, argv);
+    int threads = 16;
+    if(argc == 5)
+    {
+        threads = atoi(argv[4]);
+    }
 
 
     // Initialize timess
@@ -36,6 +41,15 @@ int main(int argc, char** argv)
         timer[i] = 0.0;
     }
     InitTSC();
+
+    FILE* timings;
+    char filename[32];
+    sprintf(filename, "%d.txt", threads);
+    timings = fopen(filename, "ab+");
+    if (timings == NULL) {
+        printf("Cannot create file");
+        return 1;
+    }
 
 
     // get CG parameters
@@ -117,7 +131,7 @@ int main(int argc, char** argv)
 
     t0 = ReadTSC();
     // spmv_gpu_2(drp, dci, dv, m, n, nnz, dx, db);
-    spmv_gpu(drp, dci, dv, m, n, nnz, dx, db);
+    spmv_gpu(drp, dci, dv, m, n, nnz, dx, db, threads);
     timer[GPU_SPMV_TIME] += ElapsedTime(ReadTSC() - t0);
 
     // copy data back from the GPU
@@ -140,7 +154,7 @@ int main(int argc, char** argv)
     timer[GPU_ALLOC_TIME] += ElapsedTime(ReadTSC() - t0);
 
     t0 = ReadTSC();
-    spmv_gpu_ell(dec, dev, m, n_new, nnz, dex, deb);
+    spmv_gpu_ell(dec, dev, m, n_new, nnz, dex, deb, threads);
     timer[GPU_ELL_TIME] += ElapsedTime(ReadTSC() - t0);
 
     // copy data back from the GPU
@@ -186,6 +200,15 @@ int main(int argc, char** argv)
 
     // print timer
     print_time(timer);
+
+    for (int i = 0; i < NUM_TIMERS; i++) {
+        fprintf(timings, "%f", timer[i]);
+        if (i < NUM_TIMERS - 1) {
+            fprintf(timings, ",");
+        }
+    }
+    fprintf(timings, "\n");
+    fclose(timings);
 
 
     // Free memory
