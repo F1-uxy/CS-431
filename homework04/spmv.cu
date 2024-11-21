@@ -12,7 +12,7 @@ __global__ void
 spmv_kernel_ell(unsigned int* col_ind, T* vals, int m, int n, int nnz, 
                     double* x, double* b)
 {
-    /*
+    
     unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (row < m) 
@@ -33,9 +33,9 @@ spmv_kernel_ell(unsigned int* col_ind, T* vals, int m, int n, int nnz,
         }
 
         b[row] = sum;
-    }*/
+    }
    
-    
+    /*
     unsigned int tid = threadIdx.x;
     unsigned int row = blockIdx.x;
     unsigned int i = tid;
@@ -75,7 +75,7 @@ spmv_kernel_ell(unsigned int* col_ind, T* vals, int m, int n, int nnz,
     if(tid == 0 && row < m)
     {
         b[blockIdx.x] = Local[0];
-    }
+    }*/
 }
 
 
