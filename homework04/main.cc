@@ -596,11 +596,43 @@ double dnrm2(const int n, double* x, const int incx)
 
 
 void convert_csr_to_ell(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
-                        double* csr_vals, int m, int n, int nnz, 
-                        unsigned int** ell_col_ind, double** ell_vals, 
-                        int* n_new)
+                            double* csr_vals, int m, int n, int nnz, 
+                            unsigned int** ell_col_ind, double** ell_vals, 
+                            int* n_new)
 {
-    // COMPLETE THIS FUNCTION
-}
+    *n_new = 0;
 
+    for (int i = 0; i < m; i++) {
+        int x = csr_row_ptr[i + 1] - csr_row_ptr[i];
+        *n_new = x > *n_new ? x : *n_new;
+    }
+
+    *ell_col_ind = (unsigned int*)malloc(m * (*n_new) * sizeof(unsigned int));
+    *ell_vals = (double*)malloc(m * (*n_new) * sizeof(double));
+
+    if (*ell_col_ind == NULL || *ell_vals == NULL) {
+        fprintf(stderr, "Cannot allocate memory for ELL format\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < m * (*n_new); i++)
+    {
+        (*ell_col_ind)[i] = -1;
+        (*ell_vals)[i] = 0.0; 
+    }
+
+    for (int i = 0; i < m; i++) {
+        unsigned int start = csr_row_ptr[i];
+        unsigned int end = csr_row_ptr[i + 1];
+        unsigned int num_of_nz = end - start;
+
+        for (int j = 0; j < num_of_nz; j++) {
+            int idx = i * (*n_new) + j;
+            int val_idx = start + j;
+
+            (*ell_vals)[idx] = csr_vals[val_idx];
+            (*ell_col_ind)[idx] = csr_col_ind[val_idx];
+        }
+    }
+}
 
