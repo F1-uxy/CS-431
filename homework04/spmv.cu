@@ -208,7 +208,6 @@ spmv_kernel(unsigned int* row_ptr, unsigned int* col_ind, T* vals,
             int m, int n, int nnz, double* x, double* b)
 {
     // COMPLETE THIS FUNCTION
-    // Calculate the row index for this thread
     int row = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (row < m) 
