@@ -112,6 +112,30 @@ int main(int argc, char** argv)
         fprintf(stdout, "file saved\n");
         end = MPI_Wtime();
         timer[STORE_TIME] = end - start;
+
+        int cpus = 0;
+        if(argc == 5)
+        {
+            cpus = atoi(argv[4]);
+        }
+
+        FILE* timings;
+        char filename[32];
+        sprintf(filename, "%d.txt", cpus);
+        timings = fopen(filename, "ab+");
+        if (timings == NULL) {
+            printf("Cannot create file");
+            return 1;
+        }
+
+        for (int i = 0; i < NUM_TIMERS; i++) {
+            fprintf(timings, "%f", timer[i]);
+            if (i < NUM_TIMERS - 1) {
+                fprintf(timings, ",");
+            }
+        }
+        fprintf(timings, "\n");
+        fclose(timings);
     }
 
     // print timer
@@ -135,6 +159,30 @@ int main(int argc, char** argv)
         fprintf(stdout, "file saved\n");
         end = MPI_Wtime();
         timer[STORE_TIME] = end - start;
+
+        int cpus = 0;
+        if(argc == 5)
+        {
+            cpus = atoi(argv[4]);
+        }
+
+        FILE* timings;
+        char filename[32];
+        sprintf(filename, "%d.txt", cpus);
+        timings = fopen(filename, "ab+");
+        if (timings == NULL) {
+            printf("Cannot create file");
+            return 1;
+        }
+
+        for (int i = 0; i < NUM_TIMERS; i++) {
+            fprintf(timings, "%f", timer[i]);
+            if (i < NUM_TIMERS - 1) {
+                fprintf(timings, ",");
+            }
+        }
+        fprintf(timings, "\n");
+        fclose(timings);
     }
 
     // print timer
@@ -310,8 +358,47 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
                         int m, int n, int nnz,
                         unsigned int** csr_row_ptr, unsigned int** csr_col_ind,
                         double** csr_vals)
-
 {
+
+    // Allocate memory for CSR arrays
+    *csr_row_ptr = (unsigned int*)malloc((m + 1) * sizeof(unsigned int));
+    *csr_col_ind = (unsigned int*)malloc(nnz * sizeof(unsigned int));
+    *csr_vals = (double*)malloc(nnz * sizeof(double));
+
+    // Initialize csr_row_ptr with zeros
+    for (int i = 0; i <= m; i++) {
+        (*csr_row_ptr)[i] = 0;
+    }
+
+    // Count the number of non-zeros per row
+    for (int i = 0; i < nnz; i++) {
+        int idx = (row_ind[i] + 1);
+        (*csr_row_ptr)[idx]++;
+    }
+
+    // Compute the prefix sum to get the starting index of each row in csr_col_ind and csr_vals
+    for (int i = 1; i <= m; i++) {
+        (*csr_row_ptr)[i] += (*csr_row_ptr)[i - 1];
+    }
+
+    // Copy col_ind and val into the CSR format arrays
+    for (int i = 0; i < nnz; i++) {
+        int row = row_ind[i];
+        int dest = (*csr_row_ptr)[row]; // Get the index to insert this value
+
+        (*csr_col_ind)[dest] = col_ind[i];
+        (*csr_vals)[dest] = val[i];
+
+        // Increment the row pointer to the next position
+        (*csr_row_ptr)[row]++;
+    }
+
+    // Restore csr_row_ptr by shifting values down (except the last one)
+    for (int i = m; i > 0; i--) {
+        (*csr_row_ptr)[i] = (*csr_row_ptr)[i - 1];
+    }
+
+    (*csr_row_ptr)[0] = 0;
 }
 
 /* Reads in a vector from file.
@@ -617,13 +704,89 @@ void spmv_coo_naive(int world_rank, int world_size, int* row_ind, int* col_ind, 
 
 void spmv_coo_2d(int world_rank, int world_size, int* row_ind, int* col_ind, 
                  double* val, int m, int n, int nnz, double* vector_x,
-                 double** res, double timer[])
+                 double** res, double timer[]) 
 {
-	// FILL IN YOUR CODE HERE
+
+    double start;
+    double end;
+
+    start = MPI_Wtime();
+    MPI_Bcast(&m, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nnz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (world_rank != 0) 
+    {
+        vector_x = (double*)malloc(n * sizeof(double));
+    }
+    MPI_Bcast(vector_x, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    end = MPI_Wtime();
+    timer[VEC_BCAST_TIME] = end - start;
+    
+
+    int nnz_per_rank = (nnz + world_size - 1) / world_size;
+    int* local_row_ind = (int*)malloc(nnz_per_rank * sizeof(int));
+    int* local_col_ind = (int*)malloc(nnz_per_rank * sizeof(int));
+    double* local_val = (double*)malloc(nnz_per_rank * sizeof(double));
+
+    if (world_rank == 0) 
+    {
+        int padded_nnz = nnz_per_rank * world_size; // Total padded size
+        int* padded_row_ind = (int*)calloc(padded_nnz, sizeof(int));
+        int* padded_col_ind = (int*)calloc(padded_nnz, sizeof(int));
+        double* padded_val = (double*)calloc(padded_nnz, sizeof(double));
+
+        memcpy(padded_row_ind, row_ind, nnz * sizeof(int));
+        memcpy(padded_col_ind, col_ind, nnz * sizeof(int));
+        memcpy(padded_val, val, nnz * sizeof(double));
+
+        start = MPI_Wtime();
+        MPI_Scatter(padded_row_ind, nnz_per_rank, MPI_INT, local_row_ind, nnz_per_rank, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(padded_col_ind, nnz_per_rank, MPI_INT, local_col_ind, nnz_per_rank, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(padded_val, nnz_per_rank, MPI_DOUBLE, local_val, nnz_per_rank, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        end = MPI_Wtime();
+        timer[MAT_SCATTER_TIME] = end - start;
+
+
+        free(padded_row_ind);
+        free(padded_col_ind);
+        free(padded_val);
+    } else 
+    {
+        MPI_Scatter(NULL, nnz_per_rank, MPI_INT, local_row_ind, nnz_per_rank, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(NULL, nnz_per_rank, MPI_INT, local_col_ind, nnz_per_rank, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(NULL, nnz_per_rank, MPI_DOUBLE, local_val, nnz_per_rank, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+
+    double* local_res = (double*)calloc(m, sizeof(double));
+
+    start = MPI_Wtime();
+    for (int i = 0; i < nnz_per_rank; i++) {
+        int row = local_row_ind[i] - 1;
+        int col = local_col_ind[i] - 1;
+        if (row >= 0 && col >= 0 && row < m && col < n) {
+            local_res[row] += local_val[i] * vector_x[col];
+        }
+    }
+    end = MPI_Wtime();
+    timer[SPMV_COO_TIME] = end - start;
+
+    if (world_rank == 0) {
+        *res = (double*)calloc(m, sizeof(double));
+    }
+
+    start = MPI_Wtime();
+    MPI_Reduce(local_res, *res, m, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    end = MPI_Wtime();
+
+    timer[RES_REDUCE_TIME] = end - start;
+
+    free(local_row_ind);
+    free(local_col_ind);
+    free(local_val);
+    free(local_res);
+
+    if (world_rank != 0) {
+        free(vector_x);
+    }
 }
-
-
-
-
-
-

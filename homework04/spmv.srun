@@ -17,4 +17,4 @@ module load gcc/7.3
 export OMP_PROC_BIND=true
 export OMP_NUM_THREADS=28
 
-./spmv cant/cant.mtx cant/b.mtx ./test.mtx 1024
+./spmv cant/cant.mtx cant/b.mtx ./test.mtx 128
