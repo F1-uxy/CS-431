@@ -1,2 +1,3 @@
 ### Charlie Flux Homework
-952106111
+
+Papers written for homework including code for CS-431 Parallel Computing
